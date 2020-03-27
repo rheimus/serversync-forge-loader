@@ -145,11 +145,8 @@ def reobfArtifact = artifacts.add('default', reobfFile) {
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            artifact reobfArtifact
-        }
         gpr(MavenPublication) {
-            from(components.java)
+            from components.java
         }
     }
     repositories {
@@ -160,9 +157,6 @@ publishing {
                 username = project.findProperty('gpr.user') ?: System.getenv('GPR_USERNAME')
                 password = project.findProperty('gpr.key') ?: System.getenv('GPR_TOKEN')
             }
-        }
-        maven {
-            url "file:///${project.projectDir}/mcmodsrepo"
         }
     }
 }
