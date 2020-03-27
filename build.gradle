@@ -11,12 +11,13 @@ buildscript {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
     }
 }
+
 apply plugin: 'net.minecraftforge.gradle'
 // Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 
-version = '1.0.0'
+version = '1.1.0'
 group = 'serversync.forge.loader' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'serversync-forge-loader'
 

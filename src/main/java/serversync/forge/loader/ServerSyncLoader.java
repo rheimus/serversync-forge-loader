@@ -10,26 +10,20 @@ import org.apache.logging.log4j.Logger;
 import serversync.generated.Reference;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.StringReader;
-import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static java.lang.System.getenv;
 
 @Mod(Reference.MODID)
 public class ServerSyncLoader {
     private static final Logger LOGGER = LogManager.getLogger();
-    private Process serversyncProcess;
 
     public ServerSyncLoader() {
         MinecraftForge.EVENT_BUS.register(this);
@@ -37,13 +31,18 @@ public class ServerSyncLoader {
 
     @SubscribeEvent
     public void onServerStarting(FMLServerStartingEvent event) {
-        // ** WE should be in the root folder for Minecraft as our CWD when forge loads.
+        // ** We should be in the root folder for Minecraft as our CWD when forge loads.
 
         try (Stream<Path> fileStream = Files.list(Paths.get(""))) {
             List<Path> serversync = fileStream
                 .parallel()
                 .filter(f -> f.getFileName().toString().matches("serversync-\\d\\.\\d\\.\\d\\.jar"))
                 .collect(Collectors.toList());
+
+            if (serversync.size() < 1) {
+                LOGGER.error("Failed to find ServerSync, have you added it to your minecraft folder?");
+                return;
+            }
 
             if (serversync.size() > 1) {
                 LOGGER.error(String.format(
@@ -53,23 +52,14 @@ public class ServerSyncLoader {
                 return;
             }
 
-            try {
-                ProcessBuilder pb = new ProcessBuilder();
-                pb.command("java", "-jar", serversync.get(0).getFileName().toString(), "server");
-                LOGGER.info(String.format("Starting ServerSync with command: %s", pb.command()));
-                serversyncProcess = pb.start();
-
-                Nomnom yummyInfo = new Nomnom(serversyncProcess.getInputStream(), LOGGER::info);
-                Nomnom yummyError = new Nomnom(serversyncProcess.getErrorStream(), LOGGER::error);
-                ExecutorService service = Executors.newFixedThreadPool(2);
-                service.submit(yummyInfo);
-                service.submit(yummyError);
-            } catch (IOException pe) {
-                LOGGER.error("Failed to start a ServerSync process!");
-                pe.printStackTrace();
-            }
-
-        } catch (IOException e) {
+            // We have enforced that serversync exists already so this hackery is less awful than usual.
+            // Loads our serversync.jar into a class loader and reflectively calls main to start the server
+            URLClassLoader child =  new URLClassLoader(new URL[]{serversync.get(0).toUri().toURL()}, this.getClass().getClassLoader());
+            Class<?> serversyncClass = Class.forName("com.superzanti.serversync.ServerSync", true, child);
+            Method mainMethod = serversyncClass.getMethod("main", String[].class);
+            mainMethod.invoke(null, (Object) new String[]{"server"});
+        } catch (IOException | ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            // Filth!!, but meh
             e.printStackTrace();
         }
     }
@@ -77,9 +67,5 @@ public class ServerSyncLoader {
     @SubscribeEvent
     public void onServerStopping(FMLServerStoppingEvent event) {
         // Run cleanup when forge exits.
-        if (serversyncProcess != null && serversyncProcess.isAlive()) {
-            LOGGER.info("Shutting down ServerSync");
-            serversyncProcess.destroy();
-        }
     }
 }
