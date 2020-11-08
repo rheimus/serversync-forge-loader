@@ -36,7 +36,7 @@ public class ServerSyncLoader {
         try (Stream<Path> fileStream = Files.list(Paths.get(""))) {
             List<Path> serversync = fileStream
                 .parallel()
-                .filter(f -> f.getFileName().toString().matches("serversync-\\d\\.\\d\\.\\d\\.jar"))
+                .filter(f -> f.getFileName().toString().matches("serversync-\\d\\.\\d\\.\\d((\\-\\w+)+|\\-?)\\.jar"))
                 .collect(Collectors.toList());
 
             if (serversync.size() < 1) {
