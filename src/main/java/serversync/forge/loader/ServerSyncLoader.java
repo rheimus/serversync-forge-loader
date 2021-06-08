@@ -3,13 +3,14 @@ package serversync.forge.loader;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
+import net.minecraftforge.fml.event.server.FMLServerAboutToStartEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import serversync.generated.Reference;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -25,12 +26,14 @@ import java.util.stream.Stream;
 public class ServerSyncLoader {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    private Thread serverThread;
+
     public ServerSyncLoader() {
         MinecraftForge.EVENT_BUS.register(this);
     }
 
     @SubscribeEvent
-    public void onServerStarting(FMLServerStartingEvent event) {
+    public void onServerAboutToStart(FMLServerAboutToStartEvent event) {
         // ** We should be in the root folder for Minecraft as our CWD when forge loads.
 
         try (Stream<Path> fileStream = Files.list(Paths.get(""))) {
@@ -53,12 +56,17 @@ public class ServerSyncLoader {
             }
 
             // We have enforced that serversync exists already so this hackery is less awful than usual.
-            // Loads our serversync.jar into a class loader and reflectively calls main to start the server
+            // Loads our serversync.jar into a class loader and reflectively calls the start server sequence
             URLClassLoader child =  new URLClassLoader(new URL[]{serversync.get(0).toUri().toURL()}, this.getClass().getClassLoader());
             Class<?> serversyncClass = Class.forName("com.superzanti.serversync.ServerSync", true, child);
-            Method mainMethod = serversyncClass.getMethod("main", String[].class);
-            mainMethod.invoke(null, (Object) new String[]{"server"});
-        } catch (IOException | ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            Object ssi = serversyncClass.newInstance();
+            Field rootDir = serversyncClass.getDeclaredField("rootDir");
+            rootDir.set(null, Paths.get(""));
+            Method runServer = serversyncClass.getDeclaredMethod("runInServerMode");
+            runServer.setAccessible(true);
+            LOGGER.info("Starting ServerSync server via forge loader: " + Reference.VERSION);
+            serverThread = (Thread) runServer.invoke(ssi);
+        } catch (IOException | ClassNotFoundException | NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
             // Filth!!, but meh
             e.printStackTrace();
         }
@@ -66,6 +74,6 @@ public class ServerSyncLoader {
 
     @SubscribeEvent
     public void onServerStopping(FMLServerStoppingEvent event) {
-        // Run cleanup when forge exits.
+        serverThread.interrupt();
     }
 }
