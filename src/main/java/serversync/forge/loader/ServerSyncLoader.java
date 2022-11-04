@@ -3,8 +3,8 @@ package serversync.forge.loader;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.server.FMLServerAboutToStartEvent;
-import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import serversync.generated.Reference;
@@ -33,7 +33,7 @@ public class ServerSyncLoader {
     }
 
     @SubscribeEvent
-    public void onServerAboutToStart(FMLServerAboutToStartEvent event) {
+    public void onServerAboutToStart(ServerAboutToStartEvent event) {
         // ** We should be in the root folder for Minecraft as our CWD when forge loads.
 
         try (Stream<Path> fileStream = Files.list(Paths.get(""))) {
@@ -68,12 +68,13 @@ public class ServerSyncLoader {
             serverThread = (Thread) runServer.invoke(ssi);
         } catch (IOException | ClassNotFoundException | NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
             // Filth!!, but meh
+			LOGGER.error("Failed to run ServerSync!");
             e.printStackTrace();
         }
     }
 
     @SubscribeEvent
-    public void onServerStopping(FMLServerStoppingEvent event) {
+    public void onServerStopping(ServerStoppingEvent event) {
         serverThread.interrupt();
     }
 }
