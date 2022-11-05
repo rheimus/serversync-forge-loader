@@ -1,8 +1,11 @@
 package serversync.forge.loader;
 
+import serversync.forge.loader.commands.ServerSyncCommand;
+
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import org.apache.logging.log4j.LogManager;
@@ -25,8 +28,8 @@ import java.util.stream.Stream;
 @Mod(Reference.MODID)
 public class ServerSyncLoader {
     private static final Logger LOGGER = LogManager.getLogger();
-
-    private Thread serverThread;
+    private static Thread SERVER_THREAD;
+    private static List<Path> SERVERSYNC_BIN;
 
     public ServerSyncLoader() {
         MinecraftForge.EVENT_BUS.register(this);
@@ -34,30 +37,54 @@ public class ServerSyncLoader {
 
     @SubscribeEvent
     public void onServerAboutToStart(ServerAboutToStartEvent event) {
-        // ** We should be in the root folder for Minecraft as our CWD when forge loads.
+        SERVER_THREAD = LoadServerSync(this);
+    }
 
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        SERVER_THREAD.interrupt();
+    }
+
+    @SubscribeEvent
+    public void RegisterCommads(RegisterCommandsEvent event) {
+        ServerSyncCommand.register(event.getDispatcher(), this);
+    }
+
+    private static boolean CheckServerSync() {
+        // ** We should be in the root folder for Minecraft as our CWD when forge loads.
         try (Stream<Path> fileStream = Files.list(Paths.get(""))) {
-            List<Path> serversync = fileStream
+            SERVERSYNC_BIN = fileStream
                 .parallel()
                 .filter(f -> f.getFileName().toString().matches("serversync-(\\d+\\.\\d+\\.\\d+)(?:-(\\w+)|-(\\w+\\.\\d+))*\\.jar"))
                 .collect(Collectors.toList());
 
-            if (serversync.size() < 1) {
+            if (SERVERSYNC_BIN.size() < 1) {
                 LOGGER.error("Failed to find ServerSync, have you added it to your minecraft folder?");
-                return;
+                return false;
             }
 
-            if (serversync.size() > 1) {
+            if (SERVERSYNC_BIN.size() > 1) {
                 LOGGER.error(String.format(
                     "Found multiple versions of ServerSync: %s, remove the excess versions.",
-                    serversync
+                    SERVERSYNC_BIN
                 ));
-                return;
+                return false;
             }
+        } catch (IOException e) {
+            LOGGER.error("Failed to find ServerSync!");
+            e.printStackTrace();
+            return false;
+        }
 
-            // We have enforced that serversync exists already so this hackery is less awful than usual.
-            // Loads our serversync.jar into a class loader and reflectively calls the start server sequence
-            URLClassLoader child =  new URLClassLoader(new URL[]{serversync.get(0).toUri().toURL()}, this.getClass().getClassLoader());
+        return true;
+    }
+
+    public static Thread LoadServerSync(ServerSyncLoader parent) {
+        if (!CheckServerSync() || parent == null)
+            return null;
+
+        try {
+            URLClassLoader child =  new URLClassLoader(new URL[]{SERVERSYNC_BIN.get(0).toUri().toURL()}, parent.getClass().getClassLoader());
             Class<?> serversyncClass = Class.forName("com.superzanti.serversync.ServerSync", true, child);
             Object ssi = serversyncClass.newInstance();
             Field rootDir = serversyncClass.getDeclaredField("rootDir");
@@ -65,16 +92,27 @@ public class ServerSyncLoader {
             Method runServer = serversyncClass.getDeclaredMethod("runInServerMode");
             runServer.setAccessible(true);
             LOGGER.info("Starting ServerSync server via forge loader: " + Reference.VERSION);
-            serverThread = (Thread) runServer.invoke(ssi);
+            SERVER_THREAD = (Thread) runServer.invoke(ssi);
         } catch (IOException | ClassNotFoundException | NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
-            // Filth!!, but meh
-			LOGGER.error("Failed to run ServerSync!");
+            LOGGER.error("Failed to run ServerSync!");
             e.printStackTrace();
+            SERVER_THREAD = null;
         }
+
+        return SERVER_THREAD;
     }
 
-    @SubscribeEvent
-    public void onServerStopping(ServerStoppingEvent event) {
-        serverThread.interrupt();
+    public static boolean StopServerSync() {
+        if (SERVER_THREAD != null) {
+            if (!SERVER_THREAD.isAlive())
+                return true;
+
+            try {
+                SERVER_THREAD.interrupt();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else return false;
     }
 }
