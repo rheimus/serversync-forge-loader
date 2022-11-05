@@ -3,7 +3,6 @@ import org.apache.tools.ant.types.Parameter
 
 buildscript {
     repositories {
-        // These repositories are only for Gradle plugins, put any other repositories in the repository block further below
         maven { url = 'https://maven.minecraftforge.net' }
         mavenCentral()
     }
@@ -17,13 +16,11 @@ plugins {
     id 'maven-publish'
 }
 apply plugin: 'net.minecraftforge.gradle'
-// Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 
-version = '3.0.0'
-group = 'serversync.forge.loader' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+version = '1.18.2-3.0.0'
+group = 'serversync.forge.loader'
 archivesBaseName = 'serversync_forge_loader'
 
-//sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '17' // Need this here so eclipse task generates correctly.
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
