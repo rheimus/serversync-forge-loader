@@ -6,7 +6,7 @@
 # The name of the mod loader type to load - for regular FML @Mod mods it should be javafml
 modLoader="javafml" #mandatory
 # A version range to match for said mod loader - for regular FML @Mod it will be the forge version
-loaderVersion="[28,)" #mandatory (28 is current forge version)
+loaderVersion="[40,)" #mandatory This is typically bumped every Minecraft version by Forge. See our download page for lists of versions.
 # A URL to refer people to when problems occur with this mod
 issueTrackerURL="https://github.com/rheimus/serversync-forge-loader/issues" #optional
 # The license for you mod. This is mandatory metadata and allows for easier comprehension of your redistributive properties.
@@ -14,21 +14,41 @@ issueTrackerURL="https://github.com/rheimus/serversync-forge-loader/issues" #opt
 license="MIT"
 # A list of mods - how many allowed here is determined by the individual mod loader
 [[mods]] #mandatory
-# The modid of the mod
-modId="serversync_forge_loader" #mandatory
-# The version number of the mod - there's a few well known ${} variables useable here or just hardcode it
-version="${version}" #mandatory
-# A display name for the mod
-displayName="ServerSync Forge Loader" #mandatory
-# A URL for the "homepage" for this mod, displayed in the mod UI
-displayURL="https://github.com/rheimus/serversync-forge-loader" #optional
-# A file name (in the root of the mod JAR) containing a logo for display
-logoFile="ServersyncLogo.png" #optional
-# A text field displayed in the mod UI
-credits="" #optional
-# A text field displayed in the mod UI
-authors="Rheimus" #optional
-# The description text for the mod (multi line!) (#mandatory)
-description='''
-A loader for Forge to start ServerSync's server automatically when forge starts. This exists for admins who don't have access to running commands on their server host, if you can run commands then just start ServerSync from a script instead.
-'''
+    # The modid of the mod
+    modId="serversync_forge_loader" #mandatory
+    # The version number of the mod - there's a few well known ${} variables useable here or just hardcode it
+    version="${version}" #mandatory
+    # A display name for the mod
+    displayName="ServerSync Forge Loader" #mandatory
+    # A URL for the "homepage" for this mod, displayed in the mod UI
+    displayURL="https://github.com/rheimus/serversync-forge-loader" #optional
+    # A file name (in the root of the mod JAR) containing a logo for display
+    logoFile="ServersyncLogo.png" #optional
+    # A text field displayed in the mod UI
+    credits="" #optional
+    # A text field displayed in the mod UI
+    authors="Rheimus" #optional
+    # The description text for the mod (multi line!) (#mandatory)
+    description='''
+    A loader for Forge to start ServerSync's server automatically when forge starts. This exists for admins who don't have access to running commands on their server host, if you can run commands then just start ServerSync from a script instead.
+    '''
+# A dependency - use the . to indicate dependency for a specific modid. Dependencies are optional.
+[[dependencies.serversync_forge_loader]] #optional
+    # the modid of the dependency
+    modId="forge" #mandatory
+    # Does this dependency have to exist - if not, ordering below must be specified
+    mandatory=true #mandatory
+    # The version range of the dependency
+    versionRange="[40,)" #mandatory
+    # An ordering relationship for the dependency - BEFORE or AFTER required if the relationship is not mandatory
+    ordering="NONE"
+    # Side this dependency is applied on - BOTH, CLIENT or SERVER
+    side="BOTH"
+# Here's another dependency
+[[dependencies.serversync_forge_loader]]
+    modId="minecraft"
+    mandatory=true
+# This version range declares a minimum of the current minecraft version up to but not including the next major version
+    versionRange="[1.18.2,1.19)"
+    ordering="NONE"
+    side="BOTH"
